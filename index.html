@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Атлас 42</title>
+<meta name="description" content="Карта присутствия движения 42: где мы уже побывали.">
+<meta name="theme-color" content="#040509">
+<meta property="og:title" content="Атлас 42">
+<meta property="og:description" content="Карта присутствия движения 42: где мы уже побывали.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%23040509' stroke='white' stroke-width='3'/%3E%3Ctext x='32' y='42' font-family='Arial Black,Arial' font-weight='900' font-size='28' fill='white' text-anchor='middle'%3E42%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="map" aria-label="Карта точек движения 42"></canvas>
+
+<aside id="side" class="panel">
+  <header class="brand">
+    <div class="logo" aria-hidden="true">42</div>
+    <div>
+      <h1>Атлас 42</h1>
+      <p>карта присутствия движения</p>
+    </div>
+    <button id="sideToggle" class="icon-btn only-mobile" aria-label="Свернуть панель">▾</button>
+  </header>
+
+  <section class="stats" id="stats">
+    <div><b data-k="places">0</b><span>точек</span></div>
+    <div><b data-k="audience">0</b><span>охват</span></div>
+    <div><b data-k="visits">0</b><span>визитов</span></div>
+    <div><b data-k="people">0</b><span>участий</span></div>
+  </section>
+
+  <div class="collapsible">
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="search" type="search" placeholder="Найти канал, чат, операцию…" autocomplete="off">
+    </label>
+    <ul id="results" class="results" hidden></ul>
+
+    <div class="nets-head">
+      <h2>Соцсети</h2>
+      <button id="netsAll" class="link-btn" hidden>показать все</button>
+    </div>
+    <ul id="nets" class="nets"></ul>
+    <p class="hint">Клик — только эта сеть. <kbd>Shift</kbd>+клик — добавить к выбору.</p>
+    <div id="hq" class="hq"></div>
+  </div>
+</aside>
+
+<div id="modes" class="modes" role="group" aria-label="Вид карты">
+  <button data-mode="galaxy" class="on">Галактика</button>
+  <button data-mode="plane">Плоскость</button>
+</div>
+<button id="unrated" class="unrated" hidden></button>
+
+<aside id="detail" class="panel detail" hidden>
+  <button id="detailClose" class="icon-btn close" aria-label="Закрыть">✕</button>
+  <div id="detailBody"></div>
+</aside>
+
+<div id="tooltip" class="tooltip" hidden></div>
+
+<div class="controls">
+  <button class="icon-btn" id="zoomIn" aria-label="Приблизить">+</button>
+  <button class="icon-btn" id="zoomOut" aria-label="Отдалить">−</button>
+  <button class="icon-btn" id="zoomFit" aria-label="Показать всё" title="Показать всё">⤢</button>
+  <button class="icon-btn on" id="spin" aria-label="Вращение" title="Вращение вокруг ядра">⟳</button>
+</div>
+
+<footer class="timeline" id="timeline">
+  <button class="icon-btn play" id="play" aria-label="Проиграть историю">▶</button>
+  <div class="track">
+    <canvas id="hist"></canvas>
+    <input id="time" type="range" min="0" max="1000" value="1000" step="1" aria-label="Время">
+  </div>
+  <div class="when"><b id="whenDate">сейчас</b><span id="whenCount"></span></div>
+</footer>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<div id="lightbox" class="lightbox" hidden><img alt="Пруф"></div>
+<div id="empty" class="empty" hidden>
+  <b>Карта пока пуста</b>
+  <span>Первая точка появится, как только штаб добавит её через панель.</span>
+</div>
+<div id="modal" class="modal" hidden><div class="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script src="config.js"></script>
+<script src="vendor/d3.min.js"></script>
+<script src="networks.js"></script>
+<script src="app.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
