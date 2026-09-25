@@ -122,13 +122,14 @@
   const inTime = (n) => n.at <= cutoff;
 
   // ---------------------------------------------------------------- раскладка
-  function clusterCenters(vis) {
+  function clusterCenters(vis, soloMode) {
     const groups = d3.group(vis, (n) => n.net);
     const list = [...groups].map(([net, arr]) => ({
       net, n: arr.length, R: Math.sqrt(d3.sum(arr, (n) => (n.rg + 3) ** 2)) * 1.25 + 24,
     })).sort((a, b) => b.n - a.n);
     const centers = new Map();
-    if (list.length === 1) { centers.set(list[0].net, { x: 0, y: 0, R: list[0].R }); return centers; }
+    // соло (выбрана одна сеть) — облако в центре без ядра; иначе даже одно облако кружит вокруг ядра
+    if (soloMode) { centers.set(list[0].net, { x: 0, y: 0, R: list[0].R }); return centers; }
     const gap = 70, maxR = d3.max(list, (d) => d.R) || 0;
     const arc = d3.sum(list, (d) => 2 * d.R + gap);
     const ring = Math.max(CORE_R + 80 + maxR, arc / TAU);
@@ -150,8 +151,9 @@
 
   function layout({ fresh = false, ticks = 300, dur = 1300 } = {}) {
     const vis = nodes.filter(inFilter);
-    const centers = clusterCenters(vis);
-    solo = centers.size === 1;
+    // соло — только когда пользователь сам выбрал одну сеть, а не когда точки пока есть лишь в одной
+    solo = filter.size > 0 && new Set(vis.map((n) => n.net)).size === 1;
+    const centers = clusterCenters(vis, solo);
 
     for (const [net, c] of centers) {
       const arr = vis.filter((n) => n.net === net).sort((a, b) => b.rg - a.rg);
