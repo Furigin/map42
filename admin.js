@@ -1,3 +1,4 @@
+
 /* Панель штаба: вход по ключу, добавление и правка точек, оценка на плоскости, журнал и откат.
  *
  * Сервера нет: данные карты — файл data.json в ветке atlas-data репозитория с сайтом.
@@ -466,14 +467,14 @@
   function campaignForm(c) {
     const rm = c?.remindMin ?? 15;
     return `
-      <label>Название канала<input name="title" required maxlength="90" value="${esc(c?.title || "")}" placeholder="куда постим — например «Мемы стримеров»"></label>
+      <label>Название канала<input name="title" required maxlength="90" value="${esc(c?.title || "")}" placeholder="Кого рейдим"></label>
       <label>Ссылка на канал<input name="link" value="${esc(c?.link || "")}" placeholder="https://t.me/…"></label>
       <div class="f-row">
-        <label>Когда постим<input name="when" type="datetime-local" required value="${toLocal(c?.at)}"></label>
+        <label>Когда рейд<input name="when" type="datetime-local" required value="${toLocal(c?.at)}"></label>
         <label>Напомнить за<select name="remindMin">${REMIND_OPTS.map((m) => `<option value="${m}" ${m === rm ? "selected" : ""}>${m ? m + " мин" : "не напоминать"}</option>`).join("")}</select></label>
       </div>
-      <label>Текст для вставки <small>его все будут копировать и постить</small>
-        <textarea name="text" rows="8" placeholder="Большой текст новости о боссе — с эмодзи, ссылками, как есть">${esc(c?.text || "")}</textarea></label>`;
+      <label>Текст для вставки <small>его все будут копировать и спамить</small>
+        <textarea name="text" rows="8" placeholder="Паста для копирования">${esc(c?.text || "")}</textarea></label>`;
   }
   function showAddCampaign() {
     const f = openModal(`<h2>📣 Запланировать рейд</h2>

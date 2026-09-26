@@ -613,7 +613,7 @@
     ctx.fillText(text, x, y);
   }
 
-  const RING_TEXT = "ДВИЖЕНИЕ 42 • 5OPKA • ПРЕМИЯ SLAY • СЕЕМ ХАЙП • ";
+  const RING_TEXT = "ДВИЖЕНИЕ 42 • 5OPKA • ПОСЕВНАЯ ХАЙПА";
   function drawCore() {
     const [x, y] = toScreen(0, 0);
     const r = CORE_R * view.k;
@@ -976,7 +976,7 @@
     openDetail(`
       <div class="d-net" style="--c:#fff"><span class="dot"></span>Ядро</div>
       <h2>Движение 42</h2>
-      <div class="d-url">за 5opka · премия SLAY</div>
+      <div class="d-url">СЛАВА ПЯТЕРКЕ · СЛАВА ПОСЕВНОЙ</div>
       <div class="d-stats">
         <div><b>${nodes.length}</b><span>точек</span></div>
         <div><b>${short(d3.sum(nodes, (n) => n.audience || 0))}</b><span>охват</span></div>
@@ -1514,7 +1514,7 @@
     banner.classList.toggle("live", !!live);
     banner.innerHTML = live
       ? `<span class="news-dot"></span><b>Сейчас! Постим</b><span class="news-t">${esc(live.title)}</span>`
-      : `<b>⏳ Следующая рейд</b><span class="news-cd">${hms(next.at - now)}</span>`;
+      : `<b>⏳ Следующий рейд</b><span class="news-cd">${hms(next.at - now)}</span>`;
   }
   function newsTick(force) {
     const { now, live, next } = newsState();
@@ -1567,7 +1567,7 @@
     const canEdit = hooks.canEdit?.();
     const body = shown.length ? shown.map((c) => campaignCard(c, now)).join("")
       : `<p class="m-lead">Плановых новостей пока нет.${canEdit ? " Нажми «Запланировать»." : ""}</p>`;
-    const f = openModal(`<h2>📣 Новости батальона</h2>
+    const f = openModal(`<h2>📣 Предстоящие рейды</h2>
       <div class="news-top">
         <button class="btn small ${notifyWanted() ? "on" : ""}" id="newsNotify">🔔 ${notifyWanted() ? "Уведомления включены" : "Напоминать мне"}</button>
         ${canEdit ? `<button class="btn primary small" data-hq="news-add">＋ Запланировать</button>` : ""}
