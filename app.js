@@ -613,7 +613,7 @@
     ctx.fillText(text, x, y);
   }
 
-  const RING_TEXT = "ДВИЖЕНИЕ 42 • 5OPKA • ПОСЕВНАЯ ХАЙПА";
+  const RING_TEXT = "ДВИЖЕНИЕ 42 • 5OPKA • ПОСЕВНАЯ ХАЙПА • ";
   function drawCore() {
     const [x, y] = toScreen(0, 0);
     const r = CORE_R * view.k;
