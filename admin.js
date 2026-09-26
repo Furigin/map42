@@ -476,42 +476,42 @@
         <textarea name="text" rows="8" placeholder="Большой текст новости о боссе — с эмодзи, ссылками, как есть">${esc(c?.text || "")}</textarea></label>`;
   }
   function showAddCampaign() {
-    const f = openModal(`<h2>📣 Запланировать новость</h2>
+    const f = openModal(`<h2>📣 Запланировать рейд</h2>
       <form class="form" autocomplete="off">${campaignForm(null)}
         <p class="f-err" role="alert"></p>
         <button type="submit" class="btn primary">Запланировать</button></form>`);
     handleSubmit($("form", f), async (fd) => {
       const at = Math.floor(new Date(fd.get("when")).getTime() / 1000);
       if (!at) throw new HQError("Укажи дату и время.");
-      await commit(`запланировал новость «${fd.get("title").trim()}»`, (d) => {
+      await commit(`запланировал рейд «${fd.get("title").trim()}»`, (d) => {
         d.campaigns = d.campaigns || [];
         d.campaigns.push({ id: nextId(d, "campaign"), title: fd.get("title").trim().slice(0, 90), link: N.normalize(fd.get("link")) || fd.get("link").trim(),
           at, remindMin: +fd.get("remindMin"), text: fd.get("text"), by: session.name, createdAt: Math.floor(Date.now() / 1000) });
       });
-      closeModal(); A.openNews(); A.notify("Новость запланирована");
+      closeModal(); A.openNews(); A.notify("рейд запланирована");
     });
   }
   function showEditCampaign(id) {
     const c = (A.data.campaigns || []).find((x) => x.id === id);
     if (!c) return;
-    const f = openModal(`<h2>✏️ Новость</h2>
+    const f = openModal(`<h2>✏️ рейд</h2>
       <form class="form" autocomplete="off">${campaignForm(c)}
         <p class="f-err" role="alert"></p>
         <div class="f-actions"><button type="submit" class="btn primary">Сохранить</button>
           <button type="button" class="btn danger" data-del>Удалить</button></div></form>`);
     const form = $("form", f);
     $("[data-del]", form).addEventListener("click", async () => {
-      if (!confirm(`Удалить новость «${c.title}»?`)) return;
+      if (!confirm(`Удалить рейд «${c.title}»?`)) return;
       try {
-        await commit(`удалил новость «${c.title}»`, (d) => { d.campaigns = (d.campaigns || []).filter((x) => x.id !== id); });
-        closeModal(); A.openNews(); A.notify("Новость удалена");
+        await commit(`удалил рейд «${c.title}»`, (d) => { d.campaigns = (d.campaigns || []).filter((x) => x.id !== id); });
+        closeModal(); A.openNews(); A.notify("рейд удалена");
       } catch (e) { $(".f-err", form).textContent = e.message; }
     });
     handleSubmit(form, async (fd) => {
       const at = Math.floor(new Date(fd.get("when")).getTime() / 1000);
-      await commit(`изменил новость «${fd.get("title").trim()}»`, (d) => {
+      await commit(`изменил рейд «${fd.get("title").trim()}»`, (d) => {
         const x = (d.campaigns || []).find((q) => q.id === id);
-        if (!x) throw new HQError("Эту новость уже удалили.");
+        if (!x) throw new HQError("Эту рейд уже удалили.");
         Object.assign(x, { title: fd.get("title").trim().slice(0, 90), link: N.normalize(fd.get("link")) || fd.get("link").trim(),
           at, remindMin: +fd.get("remindMin"), text: fd.get("text") });
       });
@@ -613,8 +613,8 @@
     "news-edit": (b) => showEditCampaign(+b.dataset.id),
     "news-del": async (b) => {
       const c = (A.data.campaigns || []).find((x) => x.id === +b.dataset.id);
-      if (!c || !confirm(`Удалить новость «${c.title}»?`)) return;
-      try { await commit(`удалил новость «${c.title}»`, (d) => { d.campaigns = (d.campaigns || []).filter((x) => x.id !== c.id); }); A.openNews(); A.notify("Новость удалена"); }
+      if (!c || !confirm(`Удалить рейд «${c.title}»?`)) return;
+      try { await commit(`удалил рейд «${c.title}»`, (d) => { d.campaigns = (d.campaigns || []).filter((x) => x.id !== c.id); }); A.openNews(); A.notify("рейд удалена"); }
       catch (e) { A.notify(e.message, "error"); }
     },
   };
@@ -631,7 +631,7 @@
       ? `<div class="hq-bar">
            <div class="hq-who"><b>🔑 Штаб</b><span>${esc(session.name)}${session.unit ? " · " + esc(session.unit) : ""}</span></div>
            <button class="btn primary small" data-hq="add-place">＋ Точка</button>
-           <button class="btn small" data-hq="news-add">📣 Новость</button>
+           <button class="btn small" data-hq="news-add">📣 рейд</button>
            <div class="hq-links"><button class="link-btn" data-hq="journal">журнал</button>
              <button class="link-btn" data-hq="settings">настройки</button>
              <button class="link-btn" data-hq="logout">выйти</button></div>

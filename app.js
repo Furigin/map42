@@ -1477,7 +1477,7 @@
 
   // ================================================================ вербовка + плановые новости
   const RECRUIT_DEFAULT = { recruitUrl: "https://t.me/propaganda42news", recruitLabel: "Вступай в ряды батальона" };
-  const LIVE_WINDOW = 2 * 3600; // сколько секунд после старта новость считается «идёт сейчас»
+  const LIVE_WINDOW = 2 * 3600; // сколько секунд после старта рейд считается «идёт сейчас»
   const settings = () => ({ ...RECRUIT_DEFAULT, ...(current?.settings || {}) });
   const campaigns = () => [...(current?.campaigns || [])].filter((c) => c && c.at).sort((a, b) => a.at - b.at);
   const newsDate = new Intl.DateTimeFormat("ru", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
@@ -1514,7 +1514,7 @@
     banner.classList.toggle("live", !!live);
     banner.innerHTML = live
       ? `<span class="news-dot"></span><b>Сейчас! Постим</b><span class="news-t">${esc(live.title)}</span>`
-      : `<b>⏳ Следующая новость</b><span class="news-cd">${hms(next.at - now)}</span>`;
+      : `<b>⏳ Следующая рейд</b><span class="news-cd">${hms(next.at - now)}</span>`;
   }
   function newsTick(force) {
     const { now, live, next } = newsState();
