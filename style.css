@@ -198,11 +198,56 @@ button.chip:hover { background: rgba(255, 255, 255, 0.12); }
 .modes button:hover { color: var(--text); }
 .modes button.on { background: #fff; color: #06070b; }
 .unrated {
-  position: fixed; z-index: 4; top: 62px; left: calc(50% + 158px); transform: translateX(-50%);
+  position: fixed; z-index: 4; top: 104px; left: calc(50% + 158px); transform: translateX(-50%);
   border: 1px dashed var(--line-strong); background: var(--panel); color: var(--muted); padding: 6px 14px; border-radius: 999px; font-size: 12px;
 }
 .unrated:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.4); }
 body.plane-mode #spin { display: none; }
+
+/* ---------- вербовка ---------- */
+.recruit {
+  display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 12px 2px;
+  padding: 12px 16px; border-radius: 12px; text-decoration: none; text-align: center;
+  font: 800 14px var(--display); letter-spacing: 0.01em; color: #06070b;
+  background: linear-gradient(135deg, #ffe15a, #ff8a3c); box-shadow: 0 6px 22px rgba(255, 138, 60, 0.35);
+  transition: transform 0.12s, box-shadow 0.15s;
+}
+.recruit:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(255, 138, 60, 0.5); }
+.recruit svg { width: 18px; height: 18px; flex: none; fill: none; stroke: #06070b; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- баннер новостей + таймер ---------- */
+.news {
+  position: fixed; z-index: 4; top: 60px; left: calc(50% + 158px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px; max-width: min(360px, 60vw);
+  padding: 9px 18px; border-radius: 999px; border: 1px solid var(--line-strong);
+  background: var(--panel); color: var(--text); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 14px; cursor: pointer; transition: border-color 0.15s;
+}
+.news:hover { border-color: rgba(255, 255, 255, 0.45); }
+.news b { font-weight: 700; white-space: nowrap; }
+.news .news-cd { font: 800 15px var(--display); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.news .news-t { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.news.live { border-color: rgba(255, 59, 59, 0.6); background: rgba(70, 12, 12, 0.92); animation: news-pulse 1.4s ease-in-out infinite; }
+.news .news-dot { width: 10px; height: 10px; border-radius: 50%; background: #FF3B3B; box-shadow: 0 0 12px #FF3B3B; flex: none; }
+@keyframes news-pulse { 0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); } 50% { box-shadow: 0 0 0 4px rgba(255, 59, 59, 0.25), 0 10px 30px rgba(0, 0, 0, 0.45); } }
+.news-toast .dot { background: var(--c); box-shadow: 0 0 12px var(--c); }
+.news-toast span span { display: block; color: var(--muted); font-size: 12px; }
+
+/* ---------- новости: карточки в окне ---------- */
+.news-top { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.btn.small.on { background: rgba(30, 215, 96, 0.15); border-color: rgba(30, 215, 96, 0.5); color: #b7f5cf; }
+.news-list { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.nc { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: rgba(255, 255, 255, 0.03); }
+.nc.live { border-color: rgba(255, 59, 59, 0.5); background: rgba(70, 12, 12, 0.4); }
+.nc-head { display: flex; align-items: flex-start; gap: 10px; }
+.nc-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nc-info b { font: 700 16px var(--display); }
+.nc-info span { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.nc-info i { font-style: normal; color: var(--text); }
+.nc.live .nc-info i { color: #FF7B7B; font-weight: 700; }
+.nc-text { width: 100%; margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-strong);
+  background: rgba(0, 0, 0, 0.35); color: var(--text); font: 14px/1.5 var(--ui); resize: vertical; }
+.nc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
 /* ---------- плоскость в карточке ---------- */
 .pc { margin-top: 4px; }
@@ -324,7 +369,9 @@ body.plane-mode #spin { display: none; }
   .toasts { top: auto; bottom: 80px; }
   .modes { top: auto; bottom: 74px; left: 50%; }
   .modes button { padding: 6px 13px; }
-  .unrated { top: auto; bottom: 118px; left: 50%; }
+  .news { top: auto; bottom: 116px; left: 50%; max-width: calc(100% - 24px); }
+  .unrated { top: auto; bottom: 158px; left: 50%; }
+  .recruit { font-size: 13px; padding: 10px 14px; }
   .modal { place-items: end center; padding: 8px; }
   .sheet { padding: 20px 16px; max-height: calc(100dvh - 16px); border-radius: 18px 18px 14px 14px; animation-name: sheet-in; }
   .f-row { grid-template-columns: 1fr; }

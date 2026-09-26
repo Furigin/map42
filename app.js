@@ -1273,6 +1273,7 @@
     }
     computeRelated();
     added.forEach(toast);
+    newsTick(true); // вербовка, баннер новостей, таймер
     hooks.onData?.(data);
   }
 
@@ -1333,6 +1334,7 @@
       p.at += shift;
       for (const v of p.visits) v.at += shift;
     }
+    for (const c of DEMO.campaigns || []) c.at += shift; // плановые новости — тоже относительно «сейчас»
   }
   function demoTick() {
     const p = DEMO.live.shift();
@@ -1411,7 +1413,7 @@
       invalidate();
     },
     close: () => closeDetail(),
-    notify,
+    notify, openModal, closeModal, openNews,
   };
 
   function notify(text, kind = "ok") {
@@ -1422,6 +1424,169 @@
     $("#toasts").append(el);
     setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 350); }, kind === "error" ? 8000 : 4000);
   }
+
+  // ================================================================ общая модалка (для новостей и штаба)
+  const modalEl = $("#modal"), sheetEl = modalEl.querySelector(".sheet");
+  function openModal(html) {
+    sheetEl.innerHTML = `<button class="icon-btn close m-close" aria-label="Закрыть">✕</button>${html}`;
+    modalEl.hidden = false;
+    sheetEl.querySelector(".m-close").addEventListener("click", closeModal);
+    setTimeout(() => sheetEl.querySelector("input:not([type=hidden]):not([type=range]), textarea, select")?.focus(), 30);
+    return sheetEl;
+  }
+  function closeModal() { modalEl.hidden = true; sheetEl.innerHTML = ""; }
+  modalEl.addEventListener("pointerdown", (e) => { if (e.target === modalEl) closeModal(); });
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && !modalEl.hidden) { e.stopImmediatePropagation(); closeModal(); } }, true);
+
+  // ================================================================ звук + браузерное уведомление
+  let audioCtx = null;
+  function initAudio() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch { /* нет Web Audio */ }
+  }
+  addEventListener("pointerdown", initAudio, { once: true }); // звук разрешён только после действия пользователя
+  function beep() {
+    if (!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    for (const d of [0, 0.2, 0.4]) {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, t0 + d);
+      g.gain.exponentialRampToValueAtTime(0.28, t0 + d + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.16);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t0 + d); o.stop(t0 + d + 0.17);
+    }
+  }
+  const NOTIFY_KEY = "atlas42.notify";
+  const notifyWanted = () => { try { return localStorage.getItem(NOTIFY_KEY) === "1"; } catch { return false; } };
+  async function enableNotify() {
+    initAudio();
+    let perm = "default";
+    try { perm = await Notification.requestPermission(); } catch { /* нет Notification */ }
+    try { localStorage.setItem(NOTIFY_KEY, perm === "granted" ? "1" : "0"); } catch { /* приватный режим */ }
+    return perm;
+  }
+  function pushNotify(title, body) {
+    if (notifyWanted() && "Notification" in window && Notification.permission === "granted") {
+      try { new Notification(title, { body, tag: "atlas42-news", renotify: true }); } catch { /* заблокировано */ }
+    }
+  }
+
+  // ================================================================ вербовка + плановые новости
+  const RECRUIT_DEFAULT = { recruitUrl: "https://t.me/propaganda42news", recruitLabel: "Вступай в ряды батальона" };
+  const LIVE_WINDOW = 2 * 3600; // сколько секунд после старта новость считается «идёт сейчас»
+  const settings = () => ({ ...RECRUIT_DEFAULT, ...(current?.settings || {}) });
+  const campaigns = () => [...(current?.campaigns || [])].filter((c) => c && c.at).sort((a, b) => a.at - b.at);
+  const newsDate = new Intl.DateTimeFormat("ru", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+
+  function hms(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const d = Math.floor(sec / 86400); sec -= d * 86400;
+    const h = Math.floor(sec / 3600); sec -= h * 3600;
+    const m = Math.floor(sec / 60), s = sec - m * 60, p = (n) => String(n).padStart(2, "0");
+    return d > 0 ? `${d} дн ${p(h)}:${p(m)}:${p(s)}` : `${p(h)}:${p(m)}:${p(s)}`;
+  }
+  function newsState() {
+    const now = Date.now() / 1000, list = campaigns();
+    const live = list.filter((c) => c.at <= now && now < c.at + LIVE_WINDOW).sort((a, b) => b.at - a.at)[0] || null;
+    const next = list.find((c) => c.at > now) || null;
+    return { now, list, live, next };
+  }
+
+  function renderRecruit() {
+    const s = settings(), el = $("#recruit");
+    if (!s.recruitUrl) { el.hidden = true; return; }
+    el.hidden = false;
+    el.href = s.recruitUrl;
+    el.querySelector("span").textContent = s.recruitLabel || RECRUIT_DEFAULT.recruitLabel;
+  }
+
+  let newsKey = "", lastTickNow = null;
+  function renderNews(live, next, now) {
+    renderRecruit();
+    if (live === undefined) { const st = newsState(); live = st.live; next = st.next; now = st.now; }
+    const banner = $("#news");
+    if (!live && !next) { banner.hidden = true; return; }
+    banner.hidden = false;
+    banner.classList.toggle("live", !!live);
+    banner.innerHTML = live
+      ? `<span class="news-dot"></span><b>Сейчас! Постим</b><span class="news-t">${esc(live.title)}</span>`
+      : `<b>⏳ Следующая новость</b><span class="news-cd">${hms(next.at - now)}</span>`;
+  }
+  function newsTick(force) {
+    const { now, live, next } = newsState();
+    const key = live ? "live:" + live.id : next ? "next:" + next.id : "none";
+    if (force || key !== newsKey) { newsKey = key; renderNews(live, next, now); }
+    else if (next) { const cd = $("#news .news-cd"); if (cd) cd.textContent = hms(next.at - now); }
+    if (lastTickNow != null) fireThresholds(lastTickNow, now);
+    lastTickNow = now;
+  }
+  // разовые сигналы при пересечении порога (напоминание и старт), только пока страница открыта
+  function fireThresholds(prev, now) {
+    for (const c of campaigns()) {
+      const remind = c.at - (c.remindMin || 0) * 60;
+      if (c.remindMin && prev < remind && now >= remind && now < c.at)
+        alertNews(`⏰ Через ${c.remindMin} мин: ${c.title}`, "Готовьтесь постить — нажми, чтобы открыть текст.", c.id);
+      if (prev < c.at && now >= c.at)
+        alertNews(`🔴 Сейчас постим: ${c.title}`, "Время! Открой и скопируй текст.", c.id);
+    }
+  }
+  function alertNews(title, body, id) {
+    beep();
+    pushNotify(title, body);
+    const el = document.createElement("div");
+    el.className = "toast news-toast";
+    el.style.setProperty("--c", "#FFD21F");
+    el.innerHTML = `<span class="dot"></span><span><b>${esc(title)}</b><span>${esc(body)}</span></span>`;
+    el.addEventListener("click", () => openNews(id));
+    $("#toasts").append(el);
+    setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 350); }, 14000);
+  }
+
+  function campaignCard(c, now) {
+    const soon = c.at > now, when = newsDate.format(c.at * 1000);
+    const state = soon ? `через ${hms(c.at - now)}` : now < c.at + LIVE_WINDOW ? "идёт сейчас" : "прошло";
+    const canEdit = hooks.canEdit?.();
+    return `<div class="nc ${soon ? "" : "live"}" data-nc="${c.id}">
+      <div class="nc-head">
+        <div class="nc-info"><b>${esc(c.title)}</b><span>🕒 ${esc(when)} · <i>${esc(state)}</i></span></div>
+        ${c.link ? `<a class="btn small" href="${esc(safeUrl(c.link))}" target="_blank" rel="noopener">Канал ↗</a>` : ""}
+      </div>
+      ${c.text ? `<textarea class="nc-text" readonly rows="6">${esc(c.text)}</textarea>
+      <div class="nc-actions"><button class="btn primary small" data-copy>📋 Скопировать текст</button>
+        ${canEdit ? `<button class="btn small" data-hq="news-edit" data-id="${c.id}">✏️</button><button class="btn small danger" data-hq="news-del" data-id="${c.id}">🗑</button>` : ""}</div>`
+      : (canEdit ? `<div class="nc-actions"><button class="btn small" data-hq="news-edit" data-id="${c.id}">✏️ Добавить текст</button><button class="btn small danger" data-hq="news-del" data-id="${c.id}">🗑</button></div>` : "")}
+    </div>`;
+  }
+  function openNews(focusId) {
+    const { now, list } = newsState();
+    const shown = list.filter((c) => now < c.at + LIVE_WINDOW);
+    const canEdit = hooks.canEdit?.();
+    const body = shown.length ? shown.map((c) => campaignCard(c, now)).join("")
+      : `<p class="m-lead">Плановых новостей пока нет.${canEdit ? " Нажми «Запланировать»." : ""}</p>`;
+    const f = openModal(`<h2>📣 Новости батальона</h2>
+      <div class="news-top">
+        <button class="btn small ${notifyWanted() ? "on" : ""}" id="newsNotify">🔔 ${notifyWanted() ? "Уведомления включены" : "Напоминать мне"}</button>
+        ${canEdit ? `<button class="btn primary small" data-hq="news-add">＋ Запланировать</button>` : ""}
+      </div>
+      <div class="news-list">${body}</div>`);
+    f.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", async () => {
+      const ta = b.closest(".nc").querySelector(".nc-text");
+      try { await navigator.clipboard.writeText(ta.value); } catch { ta.focus(); ta.select(); try { document.execCommand("copy"); } catch { /* нет */ } }
+      b.textContent = "✓ Скопировано"; setTimeout(() => (b.textContent = "📋 Скопировать текст"), 1600);
+    }));
+    f.querySelector("#newsNotify")?.addEventListener("click", async (e) => {
+      const perm = await enableNotify();
+      if (perm === "denied") return notify("Браузер запретил уведомления — включи их в настройках сайта.", "error");
+      e.target.classList.add("on"); e.target.textContent = "🔔 Уведомления включены";
+      notify("Буду напоминать о новостях");
+    });
+    if (focusId) setTimeout(() => f.querySelector(`[data-nc="${focusId}"]`)?.scrollIntoView({ block: "center" }), 40);
+  }
+  $("#news").addEventListener("click", () => { const s = newsState(); openNews((s.live || s.next)?.id); });
 
   // ---------------------------------------------------------------- старт
   (async () => {
@@ -1437,7 +1602,9 @@
     if (pid && byId.has(pid)) setTimeout(() => selectNode(byId.get(pid)), 1400);
     else if (oid && ops.has(oid)) setTimeout(() => showOp(ops.get(oid)), 1400);
     setInterval(poll, SRC.every);
+    setInterval(newsTick, 1000); // посекундный отсчёт и сигналы новостей
+    if (q.get("news") != null) setTimeout(() => openNews(newsState().next?.id), 600);
     // вернулись на вкладку — сразу обновить
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) { lastT = performance.now(); poll(); invalidate(); } });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) { lastT = performance.now(); poll(); invalidate(); newsTick(true); } });
   })();
 })();

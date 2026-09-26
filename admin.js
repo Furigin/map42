@@ -10,7 +10,7 @@
   if (!A) return;
   const $ = (s, root = document) => root.querySelector(s);
   const { esc, SRC } = A;
-  const hqEl = $("#hq"), modal = $("#modal"), sheet = $(".sheet", modal);
+  const hqEl = $("#hq");
 
   if (SRC.kind !== "github") return; // демо и локальный просмотр — без панели
 
@@ -54,7 +54,7 @@
   const b64text = (str) => b64encode(new TextEncoder().encode(str));
   const unb64text = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
 
-  const blank = () => ({ v: 2, rev: 0, places: [], operations: [], seq: { place: 0, visit: 0, op: 0 } });
+  const blank = () => ({ v: 2, rev: 0, places: [], operations: [], campaigns: [], settings: {}, seq: { place: 0, visit: 0, op: 0, campaign: 0 } });
 
   /** Свежий data.json и его sha (sha нужен GitHub, чтобы не затереть чужое сохранение). */
   async function readData(ref = BRANCH) {
@@ -72,11 +72,14 @@
   function normalize(d) {
     d.places = (d.places || []).map((p) => ({ ...p, visits: p.visits || [], track: p.track || [] }));
     d.operations = d.operations || [];
+    d.campaigns = d.campaigns || [];
+    d.settings = d.settings || {};
     const maxOf = (arr) => arr.reduce((m, x) => Math.max(m, x.id || 0), 0);
     d.seq = {
       place: Math.max(d.seq?.place || 0, maxOf(d.places)),
       visit: Math.max(d.seq?.visit || 0, maxOf(d.places.flatMap((p) => p.visits))),
       op: Math.max(d.seq?.op || 0, maxOf(d.operations)),
+      campaign: Math.max(d.seq?.campaign || 0, maxOf(d.campaigns)),
     };
     delete d.networks; // список соцсетей теперь живёт в самом сайте
     return d;
@@ -156,17 +159,8 @@
     A.notify("Вышел из штаба");
   }
 
-  // ---------------------------------------------------------------- окно (модалка)
-  function openModal(html) {
-    sheet.innerHTML = `<button class="icon-btn close m-close" aria-label="Закрыть">✕</button>${html}`;
-    modal.hidden = false;
-    $(".m-close", sheet).addEventListener("click", closeModal);
-    setTimeout(() => $("input:not([type=hidden]):not([type=range]), textarea, select", sheet)?.focus(), 30);
-    return sheet;
-  }
-  function closeModal() { modal.hidden = true; sheet.innerHTML = ""; }
-  modal.addEventListener("pointerdown", (e) => { if (e.target === modal) closeModal(); });
-  addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) { e.stopImmediatePropagation(); closeModal(); } }, true);
+  // окно (модалка) — общее с картой, объявлено в app.js
+  const { openModal, closeModal } = A;
 
   /** Кнопка отправки формы: блокируем на время сохранения, ошибки показываем в форме. */
   function handleSubmit(form, run) {
@@ -463,6 +457,87 @@
     });
   }
 
+  // ---------------------------------------------------------------- плановые новости
+  const REMIND_OPTS = [0, 5, 15, 30, 60];
+  function toLocal(at) {
+    const d = new Date((at || Date.now() / 1000 + 3600) * 1000);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  }
+  function campaignForm(c) {
+    const rm = c?.remindMin ?? 15;
+    return `
+      <label>Название канала<input name="title" required maxlength="90" value="${esc(c?.title || "")}" placeholder="куда постим — например «Мемы стримеров»"></label>
+      <label>Ссылка на канал<input name="link" value="${esc(c?.link || "")}" placeholder="https://t.me/…"></label>
+      <div class="f-row">
+        <label>Когда постим<input name="when" type="datetime-local" required value="${toLocal(c?.at)}"></label>
+        <label>Напомнить за<select name="remindMin">${REMIND_OPTS.map((m) => `<option value="${m}" ${m === rm ? "selected" : ""}>${m ? m + " мин" : "не напоминать"}</option>`).join("")}</select></label>
+      </div>
+      <label>Текст для вставки <small>его все будут копировать и постить</small>
+        <textarea name="text" rows="8" placeholder="Большой текст новости о боссе — с эмодзи, ссылками, как есть">${esc(c?.text || "")}</textarea></label>`;
+  }
+  function showAddCampaign() {
+    const f = openModal(`<h2>📣 Запланировать новость</h2>
+      <form class="form" autocomplete="off">${campaignForm(null)}
+        <p class="f-err" role="alert"></p>
+        <button type="submit" class="btn primary">Запланировать</button></form>`);
+    handleSubmit($("form", f), async (fd) => {
+      const at = Math.floor(new Date(fd.get("when")).getTime() / 1000);
+      if (!at) throw new HQError("Укажи дату и время.");
+      await commit(`запланировал новость «${fd.get("title").trim()}»`, (d) => {
+        d.campaigns = d.campaigns || [];
+        d.campaigns.push({ id: nextId(d, "campaign"), title: fd.get("title").trim().slice(0, 90), link: N.normalize(fd.get("link")) || fd.get("link").trim(),
+          at, remindMin: +fd.get("remindMin"), text: fd.get("text"), by: session.name, createdAt: Math.floor(Date.now() / 1000) });
+      });
+      closeModal(); A.openNews(); A.notify("Новость запланирована");
+    });
+  }
+  function showEditCampaign(id) {
+    const c = (A.data.campaigns || []).find((x) => x.id === id);
+    if (!c) return;
+    const f = openModal(`<h2>✏️ Новость</h2>
+      <form class="form" autocomplete="off">${campaignForm(c)}
+        <p class="f-err" role="alert"></p>
+        <div class="f-actions"><button type="submit" class="btn primary">Сохранить</button>
+          <button type="button" class="btn danger" data-del>Удалить</button></div></form>`);
+    const form = $("form", f);
+    $("[data-del]", form).addEventListener("click", async () => {
+      if (!confirm(`Удалить новость «${c.title}»?`)) return;
+      try {
+        await commit(`удалил новость «${c.title}»`, (d) => { d.campaigns = (d.campaigns || []).filter((x) => x.id !== id); });
+        closeModal(); A.openNews(); A.notify("Новость удалена");
+      } catch (e) { $(".f-err", form).textContent = e.message; }
+    });
+    handleSubmit(form, async (fd) => {
+      const at = Math.floor(new Date(fd.get("when")).getTime() / 1000);
+      await commit(`изменил новость «${fd.get("title").trim()}»`, (d) => {
+        const x = (d.campaigns || []).find((q) => q.id === id);
+        if (!x) throw new HQError("Эту новость уже удалили.");
+        Object.assign(x, { title: fd.get("title").trim().slice(0, 90), link: N.normalize(fd.get("link")) || fd.get("link").trim(),
+          at, remindMin: +fd.get("remindMin"), text: fd.get("text") });
+      });
+      closeModal(); A.openNews(); A.notify("Сохранено");
+    });
+  }
+
+  function showSettings() {
+    const s = A.data.settings || {};
+    const f = openModal(`<h2>⚙️ Настройки</h2>
+      <form class="form" autocomplete="off">
+        <h3>Кнопка вербовки</h3>
+        <label>Надпись<input name="recruitLabel" maxlength="40" value="${esc(s.recruitLabel || "Вступай в ряды батальона")}"></label>
+        <label>Ссылка<input name="recruitUrl" value="${esc(s.recruitUrl || "https://t.me/propaganda42news")}" placeholder="https://t.me/…"></label>
+        <p class="f-err" role="alert"></p>
+        <button type="submit" class="btn primary">Сохранить</button></form>`);
+    handleSubmit($("form", f), async (fd) => {
+      const url = fd.get("recruitUrl").trim();
+      if (url && !N.normalize(url)) throw new HQError("Ссылка выглядит неправильно.");
+      await commit("изменил настройки", (d) => {
+        d.settings = { ...(d.settings || {}), recruitUrl: url, recruitLabel: fd.get("recruitLabel").trim() };
+      });
+      closeModal(); A.notify("Настройки сохранены");
+    });
+  }
+
   // ---------------------------------------------------------------- журнал и откат
   const dtf = new Intl.DateTimeFormat("ru", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -491,7 +566,10 @@
         const old = (await readData(b.dataset.sha)).data;
         await commit(`откат к «${b.dataset.msg.replace(/^\[[^\]]*\]\s*/, "")}»`, (d) => {
           const seq = d.seq; // номера не переиспользуем, чтобы старые ссылки ?p= не вели на чужие точки
-          Object.assign(d, old, { seq: { place: Math.max(seq.place, old.seq.place), visit: Math.max(seq.visit, old.seq.visit), op: Math.max(seq.op, old.seq.op) } });
+          Object.assign(d, old, { seq: {
+            place: Math.max(seq.place, old.seq.place), visit: Math.max(seq.visit, old.seq.visit),
+            op: Math.max(seq.op, old.seq.op), campaign: Math.max(seq.campaign || 0, old.seq.campaign || 0),
+          } });
         });
         closeModal();
         A.notify("Карта возвращена");
@@ -524,12 +602,21 @@
       <button class="btn small" data-hq="edit-op" data-id="${op.id}">✏️ Переименовать / удалить</button></div>` : "");
 
   const ACTIONS = {
-    login: showLogin, logout, journal: showJournal, "add-place": showAddPlace,
+    login: showLogin, logout, journal: showJournal, "add-place": showAddPlace, settings: showSettings,
     "edit-place": (b) => showEditPlace(+b.dataset.id),
     "add-visit": (b) => showVisit(+b.dataset.id),
     "edit-visit": (b) => showVisit(+b.dataset.id, +b.dataset.v),
     "del-visit": (b) => deleteVisit(+b.dataset.id, +b.dataset.v),
     "edit-op": (b) => showEditOp(+b.dataset.id),
+    news: () => A.openNews(),
+    "news-add": showAddCampaign,
+    "news-edit": (b) => showEditCampaign(+b.dataset.id),
+    "news-del": async (b) => {
+      const c = (A.data.campaigns || []).find((x) => x.id === +b.dataset.id);
+      if (!c || !confirm(`Удалить новость «${c.title}»?`)) return;
+      try { await commit(`удалил новость «${c.title}»`, (d) => { d.campaigns = (d.campaigns || []).filter((x) => x.id !== c.id); }); A.openNews(); A.notify("Новость удалена"); }
+      catch (e) { A.notify(e.message, "error"); }
+    },
   };
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-hq]");
@@ -544,7 +631,9 @@
       ? `<div class="hq-bar">
            <div class="hq-who"><b>🔑 Штаб</b><span>${esc(session.name)}${session.unit ? " · " + esc(session.unit) : ""}</span></div>
            <button class="btn primary small" data-hq="add-place">＋ Точка</button>
+           <button class="btn small" data-hq="news-add">📣 Новость</button>
            <div class="hq-links"><button class="link-btn" data-hq="journal">журнал</button>
+             <button class="link-btn" data-hq="settings">настройки</button>
              <button class="link-btn" data-hq="logout">выйти</button></div>
          </div>`
       : `<button class="hq-login link-btn" data-hq="login">🔑 Вход для штаба</button>`;
